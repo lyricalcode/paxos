@@ -39,7 +39,6 @@ class Acceptor(BaseActor):
             anum, aval = self.accepts[index]
             omsg['anum'] = anum # accepted number
             omsg['aval'] = aval # accepted value
-        print('OMSG', omsg)
         send(self.servers[senderId], omsg)
 
     def handleAccept(self, imsg):

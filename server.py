@@ -34,9 +34,9 @@ class Server(BaseActor):
         self.election = Election(servers, sId)
 
         self.recovery = True
-        # self.recoveryLookahead = True
+        self.recoveryLookahead = True
         self.inRecovery = set()
-        # self.lookaheadIndex = None
+        self.lookaheadIndex = None
         self.recoveryTimer = None
 
         self.proposer = None
@@ -101,32 +101,33 @@ class Server(BaseActor):
         else:
             self.forwardToLeader(msg)
 
-    # def doLookahead(self):
-    #     if not self.recoveryLookahead:
-    #         self.lookaheadIndex = None
-    #         return
-    #     if not self.election.isLeader():
-    #         return
+    # Lookahead will only take place on restart
+    def doLookahead(self):
+        if not self.recoveryLookahead:
+            self.lookaheadIndex = None
+            return
+        if not self.election.isLeader():
+            return
 
-    #     currentMaxIndex = self.learner.getMaxIndex()
-    #     if currentMaxIndex is None:
-    #         if self.lookaheadIndex is None:
-    #             self.lookaheadIndex = self.learner.getBaseIndex()
-    #             msg = self.createEmptyRequest(self.lookaheadIndex)
-    #             self.proposer.newReqProposal(msg, self.lookaheadIndex)
-    #     elif self.lookaheadIndex is None or self.lookaheadIndex <= currentMaxIndex:
-    #         self.lookaheadIndex = currentMaxIndex + 1
-    #         msg = self.createEmptyRequest(self.lookaheadIndex)
-    #         self.proposer.newReqProposal(msg, self.lookaheadIndex)
-    #     elif self.lookaheadIndex == currentMaxIndex + 1:
-    #         # still at current lookahead
-    #         return
-    #     else:
-    #         print('Error: Lookahead is too far ahead')
+        currentMaxIndex = self.learner.getMaxIndex()
+        if currentMaxIndex is None:
+            if self.lookaheadIndex is None:
+                self.lookaheadIndex = self.learner.getBaseIndex()
+                msg = self.createEmptyRequest(self.lookaheadIndex)
+                self.proposer.newReqProposal(msg, self.lookaheadIndex)
+        elif self.lookaheadIndex is None or self.lookaheadIndex <= currentMaxIndex:
+            self.lookaheadIndex = currentMaxIndex + 1
+            msg = self.createEmptyRequest(self.lookaheadIndex)
+            self.proposer.newReqProposal(msg, self.lookaheadIndex)
+        elif self.lookaheadIndex == currentMaxIndex + 1:
+            # still at current lookahead
+            return
+        else:
+            print('Error: Lookahead is too far ahead', file=sys.stderr)
     
     def doRecovery(self):
         self.startRecoveryTimer()
-        if not self.recovery: # and not self.recoveryLookahead:
+        if not self.recovery and not self.recoveryLookahead:
             return
         # if not leader, stop with recovery
         if not self.election.isLeader():
@@ -135,13 +136,13 @@ class Server(BaseActor):
         missing = self.learner.getMissingValues()
         print('Missing: ', missing)
         print('inRecovery', self.inRecovery)
-        # print('Lookahead', self.recoveryLookahead)
-        # print('Index', self.lookaheadIndex)
+        print('Lookahead', self.recoveryLookahead)
+        print('Index', self.lookaheadIndex)
         if len(missing) == 0:
             self.recovery = False
             self.inRecovery.clear()
-            # # we're done with recovery, do lookahead if not done
-            # self.doLookahead()
+            # we're done with recovery, do lookahead if not done
+            self.doLookahead()
             return
 
         print('recovery')
@@ -209,8 +210,8 @@ class Server(BaseActor):
                 return
             self.requestQueue.put(retryMsg)
             acceptedProposal.setOrigRetried()
-        # elif not wasOverridden:
-        #     self.recoveryLookahead = False
+        elif not wasOverridden:
+            self.recoveryLookahead = False
         
     def handleMsg(self, msg):
         if msg is None:
@@ -224,12 +225,13 @@ class Server(BaseActor):
             self.handleLog(msg)
         elif msgType == 'prepare':
             print('prepare')
+            print(msg)
             self.acceptor.handlePrepare(msg)
         elif msgType == 'promise':
             print('promise')
             result = self.proposer.handlePromise(msg)
-            # if result:
-            #     self.recoveryLookahead = False
+            if result:
+                self.recoveryLookahead = False
         elif msgType == 'accept':
             print('accept')
             self.acceptor.handleAccept(msg)
@@ -295,6 +297,9 @@ if __name__ == '__main__':
         for line in f:
             serverId, serverIp, udpPort, tcpPort = line.strip().split()
             serverId = int(serverId)
+            if not serverId > 0:
+                print('Server IDs are strictly positive integers')
+                sys.exit()
             udpPort = int(udpPort)
             tcpPort = int(tcpPort)
             servers[serverId] = (serverIp, udpPort, tcpPort)

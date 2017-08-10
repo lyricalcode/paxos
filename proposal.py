@@ -25,6 +25,8 @@ class Proposal(object):
     def getPropNum(self):
         return self.propNum
 
+    # increments should be based on propIncrement, which is the number of servers
+    # this prevents duplicate prop numbers
     def incrementPropNum(self, increment):
         self.propNum += increment
 
@@ -80,8 +82,10 @@ class Proposal(object):
     def isAlive(self):
         return self.propAlive
 
+    # proposal is dead due to getting a higher propNum from acceptor
     def killProposal(self):
         self.propAlive = False
+        self.reuse = False
 
     def markReuse(self):
         self.reuse = True

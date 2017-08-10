@@ -36,20 +36,21 @@ class Proposer(BaseActor):
     def newReqProposal(self, imsg, index):
         clientId = imsg['clientid'] #str
         clientReqId = imsg['reqid'] #str
-        # cIdx = imsg.get('index')
-        # if cIdx is not None:
-        #     index = cIdx
         gReqId = getGlobalReqId(clientId, clientReqId)
         value = imsg['value']
 
         logValue = {'id': gReqId, 'value': value }
 
-        # # special case from lookahead, already have promises, directly accept
-        # if self.proposals.get(index) is not None and self.proposals.get(index).isReuse():
-        #     print('USING SPECIAL CASE')
-        #     self._sendAccept()
-        #     return
-        if self.proposals.get(index) is not None:
+        # special case from lookahead, already have promises, directly accept
+        currentProposal = self.proposals.get(index)
+        if currentProposal is not None and currentProposal.isReuse():
+            currentProposal = self.proposals.get(index)
+            currentProposal.setValue(logValue)
+            currentProposal.setOrigValue(logValue)
+            print('USING SPECIAL CASE')
+            self._sendAccept(index)
+            return
+        elif currentProposal is not None:
             print('Error: Submitting a new proposal for index failed')
             return
 
@@ -57,7 +58,10 @@ class Proposer(BaseActor):
         self.proposals[index] = Proposal(index, self.propNums[index], logValue, self.majority)
         self._sendPrepare(index)
 
-    def _sendPrepare(self, index):    
+    def _sendPrepare(self, index):
+        if not self.isLeader:
+            self._cancelRetry(index)
+            return    
         #prepare
         #create msg
         omsg = self._createBaseMsg(index, 'prepare')
@@ -109,13 +113,13 @@ class Proposer(BaseActor):
         
         # check quorum
         if self.proposals[index].hasPromiseQuorum():
-            # if not currentProposal.isOverridden():
-            #     if self.isRecoveryProp(index):
-            #         #found the head of the log
-            #         currentProposal.markReuse()
-            #         # don't retry after interval
-            #         self._cancelRetry(index)
-            #         return True
+            if not currentProposal.isOverridden():
+                if self.isRecoveryProp(index):
+                    #found the head of the log
+                    currentProposal.markReuse()
+                    # don't retry after interval
+                    self._cancelRetry(index)
+                    return True
             # if has quorum and still nothing accepted, then the value will be original value
             self._sendAccept(index)
         return False
@@ -143,6 +147,7 @@ class Proposer(BaseActor):
         index = imsg['index']
 
         currentProposal = self.proposals.get(index)
+        # prevents reaction to accepted proposals from other proposers
         if currentProposal is None or anum != currentProposal.getPropNum():
             return
 
@@ -167,6 +172,8 @@ class Proposer(BaseActor):
     # retry after interval or 
     def _retryAfterTime(self, index, seconds=4.0):
         self._cancelRetry(index)
+        if not self.isLeader:
+            return
         self.resetTimers[index] = threading.Timer(seconds, self._retryProposal, [ index ])
         self.resetTimers[index].start()
 
@@ -179,6 +186,8 @@ class Proposer(BaseActor):
         if self.proposals[index].isLearned() or not self.isLeader:
             return
 
+        # left too long, will eventually crash/overflow
+        # could retry some sort of backoff in retry interval
         self.proposals[index].incrementPropNum(self.propIncrement)
 
         # proposal is being retried as is due to lack of responses or 
