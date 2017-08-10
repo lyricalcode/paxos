@@ -4,67 +4,79 @@ from base_actor import BaseActor
 from server_util import send
 
 class Learner(BaseActor):
-    def __init__(self, servers, sId, index):
-        BaseActor.__init__(self, servers, sId, index)
+    def __init__(self, servers, sId):
+        BaseActor.__init__(self, servers, sId)
         self.acceptedValues = dict()
-        self.learnedValue = None
-        self.clientAddr = None
-        self.clientPort = None
-        self.clientNotified = False
 
-    def registerRequest(self, imsg):
-        if self.clientAddr is not None:
-            # could do some still deciding thing here.
-            self._notifyClient()
-            return
-        self.clientAddr = imsg['retaddr']
-        self.clientPort = imsg['retport']
+        # {index: learnedValue}
+        # learnedValue: {'id': (clientid, reqId), 'value': value }
+        self.learnedValues = dict()
+
+        self.completedRequests = set()
+        
+        self.baseIndex = 0
+        self.maxIndex = None
 
     # An acceptor has accepted a proposal
     def handleAccepted(self, imsg):
         # valid = imsg['valid']
         sender = imsg['sender']
+        index = imsg['index']
         anum = imsg['anum']
         aval = imsg['aval']
 
-        if self.acceptedValues.get((anum, aval)) is None:
-            self.acceptedValues[(anum, aval)] = { sender }
+        if self.acceptedValues.get(index) is None:
+            self.acceptedValues[index] = dict()
+
+        accepted = self.acceptedValues[index]
+
+        avalkey = (aval.get('id'), aval.get('value'))
+        if accepted.get((anum, avalkey)) is None:
+            accepted[(anum, avalkey)] = { sender }
         else:
-            self.acceptedValues[(anum, aval)].add(sender)
+            accepted[(anum, avalkey)].add(sender)
 
-        if len(self.acceptedValues[(anum, aval)]) >= self.majority:
-            print('Learned', aval)
-            self.learnedValue = aval
-            self._notifyClient()
+        if len(accepted[(anum, avalkey)]) >= self.majority:
+            #print('Learned', aval)
+            self.learnedValues[index] = aval
+            self.completedRequests.add(aval.get('id'))
+            if self.maxIndex is None or index > self.maxIndex:
+                self.maxIndex = index
+            return True
+        return False
 
-    def getLearnedValue(self):
-        return self.learnedValue
+    # reqId: (clientId, reqId)
+    def checkCompleted(self, reqId):
+        return reqId in self.completedRequests    
 
-    def _notifyClient(self):
-        if self.clientAddr is None:
-            return
+    def getLearnedValue(self, index):
+        return self.learnedValues.get(index)
 
-        if self.learnedValue is None:
-            self._sendPending()
+    def getAllValues(self):
+        return self.learnedValues
+
+    def getMissingValues(self):
+        print('MAX INDEX:', self.maxIndex)
+        if self.maxIndex is None:
+            return list()
+        missing = list()
+        for i in range(self.baseIndex, self.maxIndex):
+            if i not in self.learnedValues:
+                missing.append(i)
+        return missing
+
+    def getNextIndex(self):
+        if self.maxIndex is None:
+            self.maxIndex = self.baseIndex
         else:
-            self._sendResult()
+            self.maxIndex += 1
+        return self.maxIndex
 
-    def _sendPending(self):
-        msg = dict()
-        msg['type'] = 'result'
-        msg['status'] = 'pending'
-        msg['index'] = self.index
+    def getMaxIndex(self):
+        return self.maxIndex
         
-        send((self.clientAddr, self.clientPort), msg)
-
-    def _sendResult(self):
-        msg = dict()
-        msg['type'] = 'result'
-        msg['status'] = 'done'
-        msg['index'] = self.index
-        msg['val'] = self.learnedValue
-
-        send((self.clientAddr, self.clientPort), msg)
+    def getBaseIndex(self):
+        return self.baseIndex
 
 if __name__ == '__main__':
     pass

@@ -1,99 +1,191 @@
 #!/usr/bin/python3
 
+import sys
 import threading
-from server_util import send
+from server_util import send, getGlobalReqId, splitGlobalReqId
 from proposal import Proposal
 from base_actor import BaseActor
 
 class Proposer(BaseActor):
-    def __init__(self, servers, sId, index):
-        BaseActor.__init__(self, servers, sId, index)
+    def __init__(self, servers, sId):
+        BaseActor.__init__(self, servers, sId)
         # increment propNum by number of servers to prevent repeated propNum's
         self.propIncrement = len(servers)
         
         # proposal properties
         # base propNum is the ID due to uniqueness
-        self.propNum = sId
-        self.proposal = None
-        
-        self.resetTimer = None
+        self.basePropNum = sId
 
-    # value: string
-    def newProposal(self, imsg):
-        if self.proposal is not None:
-            # already have a proposal
+        # dictionary: {index: proposal}
+        self.proposals = dict()
+        self.propNums = dict()
+        
+        self.resetTimers = dict()
+
+        self.isLeader = False
+
+    # def exportData(self):
+    #     data = dict()
+    #     data['proposals'] = self.proposals
+    #     data['propnums'] = self.propNums
+
+    # def loadData(self, data):
+    #     self.proposals = data.get('proposals')
+    #     self.propNums = data.get('propnums')
+
+    def newReqProposal(self, imsg, index):
+        clientId = imsg['clientid'] #str
+        clientReqId = imsg['reqid'] #str
+        # cIdx = imsg.get('index')
+        # if cIdx is not None:
+        #     index = cIdx
+        gReqId = getGlobalReqId(clientId, clientReqId)
+        value = imsg['value']
+
+        logValue = {'id': gReqId, 'value': value }
+
+        # # special case from lookahead, already have promises, directly accept
+        # if self.proposals.get(index) is not None and self.proposals.get(index).isReuse():
+        #     print('USING SPECIAL CASE')
+        #     self._sendAccept()
+        #     return
+        if self.proposals.get(index) is not None:
+            print('Error: Submitting a new proposal for index failed')
             return
-        
-        self.propNum += self.propIncrement
-        self.proposal = Proposal(self.propNum, imsg['val'], self.majority)
-        self._sendPrepare()
 
-    def _sendPrepare(self):    
+        self.propNums[index] = self.basePropNum
+        self.proposals[index] = Proposal(index, self.propNums[index], logValue, self.majority)
+        self._sendPrepare(index)
+
+    def _sendPrepare(self, index):    
         #prepare
         #create msg
-        omsg = self._createBaseMsg('prepare')
-        omsg['propnum'] = self.proposal.getPropNum()
+        omsg = self._createBaseMsg(index, 'prepare')
+        omsg['propnum'] = self.proposals[index].getPropNum()
 
         self._sendToAll(omsg)
+        self._retryAfterTime(index)
 
+    # return True if found empty slot during recovery
     def handlePromise(self, imsg):
         sender = imsg['sender']
         valid = imsg['valid']
+        print('handlePromise: valid', valid)
+        index = imsg['index']
 
+        print(imsg)
         pnum = imsg['pnum']
-        anum = imsg['anum']
-        aval = imsg['aval']
+        anum = imsg.get('anum')
+        aval = imsg.get('aval')
+        promised = imsg.get('promised')
 
+        currentProposal = self.proposals.get(index)
+        # print(type(currentProposal), type(currentProposal.haveWeQ))
         # response is old, ignore or already has a quorum
-        if pnum != self.proposal.getPropNum() or not self.proposal.isAlive() \
-            or self.proposal.hasPromiseQuorum() or self.proposal.isLearned():
-            return
+        if currentProposal is None or \
+            pnum != currentProposal.getPropNum() or \
+            not currentProposal.isAlive() \
+            or currentProposal.hasPromiseQuorum() or \
+            currentProposal.isLearned():
+            return False
 
         # if not valid, proposal is doomed, abort
         if not valid:
-            self.proposal.killProposal()
-            # try again in a bit
-            self._resubmitAfterTime()
-            return
-        
+            currentProposal.killProposal()
+
+            # need higher propNum
+            diff = promised % self.propIncrement
+            newPropNum = promised - diff
+
+            print('RESET, newPropNum: ', newPropNum)
+            currentProposal.resetProposal(newPropNum)
+            # # try again in a bit/will be auto retried later
+            self._retryAfterTime(index)
+            return False
+
         # add sender to acceptor set
-        self.proposal.addPromise(sender)
-        self.proposal.tryNumValue(anum, aval)
+        self.proposals[index].addPromise(sender)
+        self.proposals[index].tryNumValue(anum, aval)
         
         # check quorum
-        if self.proposal.hasPromiseQuorum():
+        if self.proposals[index].hasPromiseQuorum():
+            # if not currentProposal.isOverridden():
+            #     if self.isRecoveryProp(index):
+            #         #found the head of the log
+            #         currentProposal.markReuse()
+            #         # don't retry after interval
+            #         self._cancelRetry(index)
+            #         return True
             # if has quorum and still nothing accepted, then the value will be original value
-            omsg = self._createBaseMsg('accept')
-            omsg['pnum'] = self.proposal.getPropNum()
-            omsg['pval'] = self.proposal.getValue()
-            self._sendToAll(omsg)
+            self._sendAccept(index)
+        return False
+
+    def isRecoveryProp(self, index):
+        currentProposal = self.proposals.get(index)
+        val = currentProposal.getValue()
+        gId = val.get('id')
+        cId, rId = splitGlobalReqId(gId)
+        return cId < 0
+
+    def _sendAccept(self, index):
+        currentProposal = self.proposals.get(index)
+        omsg = self._createBaseMsg(index, 'accept')
+        omsg['pnum'] = currentProposal.getPropNum()
+        omsg['pval'] = currentProposal.getValue()
+        self._sendToAll(omsg)
+        self._retryAfterTime(index)
 
     def handleAccepted(self, imsg):
         # valid = imsg['valid']
         sender = imsg['sender']
         anum = imsg['anum']
         aval = imsg['aval']
+        index = imsg['index']
 
-        if self.proposal is None or anum != self.proposal.getPropNum():
+        currentProposal = self.proposals.get(index)
+        if currentProposal is None or anum != currentProposal.getPropNum():
             return
 
-        if aval != self.proposal.getValue():
-            print('Error: Different value for proposal number', file=sys.stderr)
+        if aval != currentProposal.getValue():
+            print('Error: Different value for proposal number', aval, currentProposal.getValue(), file=sys.stderr)
             return
 
-        self.proposal.addAccept(sender)
+        result = currentProposal.addAccept(sender)
 
-    def _resubmitAfterTime(self, seconds=5.0):
-        if self.resetTimer is not None:
-            self.resetTimer.cancel()
-        self.resetTimer = threading.Timer(seconds, self._resubmit)
-        self.resetTimer.start()
-    
-    def _resubmit(self):
-        self.propNum += self.propIncrement
-        self.proposal.reset(self.propNum)
-        self._sendPrepare()
+        if result:
+            self._cancelRetry(index)
 
+        return currentProposal
+
+    def checkPropStatus(self, index):
+        currentProposal = self.proposals.get(index)
+        if currentProposal is None:
+            print('Error: Checking status of invalid index')
+        return currentProposal.isOverridden()
+
+    # retry logic
+    # retry after interval or 
+    def _retryAfterTime(self, index, seconds=4.0):
+        self._cancelRetry(index)
+        self.resetTimers[index] = threading.Timer(seconds, self._retryProposal, [ index ])
+        self.resetTimers[index].start()
+
+    def _cancelRetry(self, index):
+        retryTimer = self.resetTimers.get(index)
+        if retryTimer is not None and retryTimer.is_alive():
+            retryTimer.cancel()
+
+    def _retryProposal(self, index):
+        if self.proposals[index].isLearned() or not self.isLeader:
+            return
+
+        self.proposals[index].incrementPropNum(self.propIncrement)
+
+        # proposal is being retried as is due to lack of responses or 
+        self._sendPrepare(index)
+
+    def setLeader(self, status):
+        self.isLeader = status
 
 if __name__ == '__main__':
     pass

@@ -1,45 +1,54 @@
 #!/usr/bin/python3
 
 import sys
-import json
 
 from server_util import send
 from base_actor import BaseActor
 
 class Acceptor(BaseActor):
-    def __init__(self, servers, sId, index):
-        BaseActor.__init__(self, servers, sId, index)
+    def __init__(self, servers, sId):
+        BaseActor.__init__(self, servers, sId)
 
-        self.minPropNum = None
-        self.acceptedPropNum = None
-        self.acceptedValue = None
+        # {index: promiseNum}
+        self.promises = dict()
+
+        # {index: (propNum, propVal)}
+        self.accepts = dict()
 
     def handlePrepare(self, imsg):
-        msgPropNum = imsg['propnum']
-        msgSenderId = imsg['sender']
+        propNum = imsg['propnum']
+        senderId = imsg['sender']
+        index = imsg['index']
         # promise not to accept any proposal with value < maxPropNum
-        if self.minPropNum is None or msgPropNum > self.minPropNum:
-            self.minPropNum = msgPropNum
-        if msgPropNum <= self.minPropNum:
-            omsg = self._createBaseMsg('promise')
+        promiseNum = self.promises.get(index)
+        omsg = self._createBaseMsg(index, 'promise')
+        omsg['pnum'] = propNum
+        if promiseNum is None or propNum > promiseNum:
+            self.promises[index] = propNum
+            omsg['valid'] = True
+        else:
             omsg['valid'] = False
-            send(self.servers[msgSenderId], omsg)
-            return
+        
+        omsg['promised'] = self.promises[index]
         
         # send promise back with any accepted value back
-        omsg = self._createBaseMsg('promise')
-        omsg['valid'] = True
-        omsg['pnum'] = self.minPropNum # promise number
-        omsg['anum'] = self.acceptedPropNum # accepted number
-        omsg['aval'] = self.acceptedValue # accepted value
-        send(self.servers[msgSenderId], omsg)
+        if self.accepts.get(index) is None:
+            omsg['anum'] = None
+            omsg['aval'] = None
+        else:
+            anum, aval = self.accepts[index]
+            omsg['anum'] = anum # accepted number
+            omsg['aval'] = aval # accepted value
+        print('OMSG', omsg)
+        send(self.servers[senderId], omsg)
 
     def handleAccept(self, imsg):
         pnum = imsg['pnum']
         pval = imsg['pval']
         msgSenderId = imsg['sender']
+        index = imsg['index']
 
-        if self.minPropNum > pnum:
+        if self.promises[index] > pnum:
             # omsg = self._createBaseMsg('accepted')
             # omsg['valid'] = False
             # omsg['anum'] = pnum
@@ -47,17 +56,15 @@ class Acceptor(BaseActor):
             # send(self.servers[msgSenderId], omsg)
             return
 
-        self.acceptedPropNum = pnum
-        self.acceptedValue = pval
+        self.accepts[index] = (pnum, pval)
+        self.promises[index] = pnum
 
-        omsg = self._createBaseMsg('accepted')
+        omsg = self._createBaseMsg(index, 'accepted')
         # omsg['valid'] = True
         omsg['anum'] = pnum
         omsg['aval'] = pval
 
         self._sendToAll(omsg)
-        
-
 
 if __name__ == '__main__':
     pass
