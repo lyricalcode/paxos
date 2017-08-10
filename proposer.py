@@ -74,17 +74,14 @@ class Proposer(BaseActor):
     def handlePromise(self, imsg):
         sender = imsg['sender']
         valid = imsg['valid']
-        print('handlePromise: valid', valid)
         index = imsg['index']
 
-        print(imsg)
         pnum = imsg['pnum']
         anum = imsg.get('anum')
         aval = imsg.get('aval')
         promised = imsg.get('promised')
 
         currentProposal = self.proposals.get(index)
-        # print(type(currentProposal), type(currentProposal.haveWeQ))
         # response is old, ignore or already has a quorum
         if currentProposal is None or \
             pnum != currentProposal.getPropNum() or \
@@ -103,7 +100,7 @@ class Proposer(BaseActor):
 
             print('RESET, newPropNum: ', newPropNum)
             currentProposal.resetProposal(newPropNum)
-            # # try again in a bit/will be auto retried later
+            # try again in a bit/will be auto retried later
             self._retryAfterTime(index)
             return False
 
@@ -140,7 +137,6 @@ class Proposer(BaseActor):
         self._retryAfterTime(index)
 
     def handleAccepted(self, imsg):
-        # valid = imsg['valid']
         sender = imsg['sender']
         anum = imsg['anum']
         aval = imsg['aval']

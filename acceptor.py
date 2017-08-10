@@ -48,11 +48,6 @@ class Acceptor(BaseActor):
         index = imsg['index']
 
         if self.promises[index] > pnum:
-            # omsg = self._createBaseMsg('accepted')
-            # omsg['valid'] = False
-            # omsg['anum'] = pnum
-            # omsg['aval'] = pval
-            # send(self.servers[msgSenderId], omsg)
             return
 
         self.accepts[index] = (pnum, pval)

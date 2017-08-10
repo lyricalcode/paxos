@@ -101,7 +101,6 @@ class Server(BaseActor):
         else:
             self.forwardToLeader(msg)
 
-    # Lookahead will only take place on restart
     def doLookahead(self):
         if not self.recoveryLookahead:
             self.lookaheadIndex = None
@@ -145,9 +144,7 @@ class Server(BaseActor):
             self.doLookahead()
             return
 
-        print('recovery')
-
-        #if we need recovery, do lookahead later
+        # if we need recovery, do recovery also
         self.recoveryLookahead = True
 
         for index in missing:
@@ -178,7 +175,7 @@ class Server(BaseActor):
         return msg
     
     def processRequest(self):
-        if self.recovery or self.requestQueue.empty(): # or self.recoveryLookahead: 
+        if self.recovery or self.recoveryLookahead or self.requestQueue.empty(): 
             return
         msg = self.requestQueue.get()
         clientId = msg['clientid']
