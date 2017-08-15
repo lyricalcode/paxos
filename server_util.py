@@ -4,7 +4,7 @@ import json
 import socket
 import sys
 
-MSG_SIZE = 1024
+MAX_MSG_SIZE = 1024
 
 # int, int
 def getGlobalReqId(clientId, clientReqId):
@@ -16,13 +16,12 @@ def splitGlobalReqId(gReqId):
 
 def prepare(msg):
     msg = json.dumps(msg)
-    #print(msg)
     size = len(msg)
-    if size > 1024:
+    if size > MAX_MSG_SIZE:
         print("Message size too big", file=sys.stderr)
-    
-    # make all msgs 1024 bytes
-    msg = str.encode(msg.ljust(MSG_SIZE, '\0'))
+        return
+
+    msg = str.encode(msg)
     return msg
 
 def extractUDPPair(address):
@@ -37,6 +36,8 @@ def extractTCPPair(address):
 # msg should be a dictionary that will be converted to json, <= 1024 bytes
 def send(address, msg):
     msg = prepare(msg)
+    if msg is None:
+        return
     address = extractUDPPair(address)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -44,6 +45,8 @@ def send(address, msg):
 
 def sendTCP(address, msg):
     msg = prepare(msg)
+    if msg is None:
+        return
     address = extractTCPPair(address)
 
     try:
@@ -56,8 +59,8 @@ def sendTCP(address, msg):
         return
 
 def recv(sock):
-    data = sock.recv(MSG_SIZE)
-    json_str = data.decode().strip('\0')
+    data = sock.recv(MAX_MSG_SIZE)
+    json_str = data.decode()
     try:
         msg = json.loads(json_str)
         return msg
