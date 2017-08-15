@@ -9,7 +9,7 @@ class Learner(BaseActor):
         self.acceptedValues = dict()
 
         # {index: learnedValue}
-        # learnedValue: {'id': (clientid, reqId), 'value': value }
+        # learnedValue: {'id': gReqId, 'value': value }
         self.learnedValues = dict()
 
         # { string } set of request id strings
@@ -82,14 +82,19 @@ class Learner(BaseActor):
     def exportDict(self):
         dump = dict()
         dump['learnedvalues'] = self.learnedValues
-        dump['completedrequests'] = self.completedRequests
-        dump['maxindex'] = self.maxIndex
+        #dump['completedrequests'] = self.completedRequests
+        #dump['maxindex'] = self.maxIndex
         return dump
 
     def importDict(self, dump):
         self.learnedValues = dump['learnedvalues']
-        self.completedRequests = dump['completedrequests']
-        self.maxIndex = dump['maxindex']
+        #self.completedRequests = dump['completedrequests']
+        #self.maxIndex = dump['maxindex']
+
+        for val in self.learnedValues:
+            self.completedRequests.add(self.learnedValues[val]['id'])
+            if self.maxIndex is None or val > self.maxIndex:
+                self.maxIndex = val
 
 
 if __name__ == '__main__':

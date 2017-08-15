@@ -68,7 +68,7 @@ class Server(BaseActor):
 
         # load saved
         if os.path.isfile(self.stateFileName):
-            print('Loading from: ', self.stateFileName)
+            print('Loading from:', self.stateFileName)
             self._loadState()
 
     def _initNetworking(self):
@@ -143,9 +143,9 @@ class Server(BaseActor):
         
         missing = self.learner.getMissingValues()
         print('Missing: ', missing)
-        print('inRecovery', self.inRecovery)
-        print('Lookahead', self.recoveryLookahead)
-        print('Index', self.lookaheadIndex)
+        print('In Recovery', self.inRecovery)
+        print('Perform Lookahead', self.recoveryLookahead)
+        print('Lookahead Index', self.lookaheadIndex)
         if len(missing) == 0:
             self.recovery = False
             self.inRecovery.clear()
