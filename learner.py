@@ -6,6 +6,8 @@ from server_util import send
 class Learner(BaseActor):
     def __init__(self, servers, sId):
         BaseActor.__init__(self, servers, sId)
+
+        # {index: {(anum, aval): set of acceptors}}
         self.acceptedValues = dict()
 
         # {index: learnedValue}

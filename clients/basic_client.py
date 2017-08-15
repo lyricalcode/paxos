@@ -35,7 +35,7 @@ if __name__ == '__main__':
     msg = dict()
     msg['type'] = 'request'
     msg['clientid'] = 1
-    msg['reqid'] = 7
+    msg['reqid'] = 1
     msg['value'] = 'abc'
     msg['retip'] = UDP_IP
     msg['retport'] = UDP_PORT
