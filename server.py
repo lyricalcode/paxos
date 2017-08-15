@@ -45,22 +45,31 @@ class Server(BaseActor):
         
 
     def _saveState(self):
+        acceptorDump = self.acceptor.exportDict()
+        learnerDump = self.learner.exportDict()
+        dump = dict()
+        dump['acceptor'] = acceptorDump
+        dump['learner'] = learnerDump
         with open(self.stateFileName, 'wb') as sf:
-            # pickle.dump((self.proposer, self.acceptor, self.learner), sf)
-            pickle.dump(self.learner, sf)
+            pickle.dump(dump, sf)
 
     def _loadState(self):
         with open(self.stateFileName, 'rb') as sf:
-            # self.proposer, self.acceptor, self.learner = pickle.loads(sf)
-            self.learner = pickle.loads(sf)
+            dump = pickle.load(sf)
+            acceptorDump = dump['acceptor']
+            learnerDump = dump['learner']
+            self.acceptor.importDict(acceptorDump)
+            self.learner.importDict(learnerDump)
 
     def _initActors(self):
-        # if os.path.isfile(self.stateFileName):
-        #     self._loadState()
-        # else:
         self.proposer = Proposer(self.servers, self.id)
         self.acceptor = Acceptor(self.servers, self.id)
-        self.learner = Learner(self.servers, self.id)     
+        self.learner = Learner(self.servers, self.id)
+
+        # load saved
+        if os.path.isfile(self.stateFileName):
+            print('Loading from: ', self.stateFileName)
+            self._loadState()
 
     def _initNetworking(self):
         self.SERVER_IP, self.UDP_PORT, self.TCP_PORT = self.servers[self.id]
@@ -271,7 +280,7 @@ class Server(BaseActor):
                 else:
                     msg = recv(s)
                     self.handleMsg(msg)
-                    # self._saveState()
+                    self._saveState()
 
             self.doRecovery()
             self.processRequest()

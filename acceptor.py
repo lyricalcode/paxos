@@ -60,5 +60,16 @@ class Acceptor(BaseActor):
 
         self._sendToAll(omsg)
 
+    def exportDict(self):
+        dump = dict()
+        dump['promises'] = self.promises
+        dump['accepts'] = self.accepts
+        return dump
+
+    def importDict(self, dump):
+        self.promises = dump['promises']
+        self.accepts = dump['accepts']
+
+
 if __name__ == '__main__':
     pass

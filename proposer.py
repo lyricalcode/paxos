@@ -24,20 +24,19 @@ class Proposer(BaseActor):
 
         self.isLeader = False
 
-    # def exportData(self):
-    #     data = dict()
-    #     data['proposals'] = self.proposals
-    #     data['propnums'] = self.propNums
-
-    # def loadData(self, data):
-    #     self.proposals = data.get('proposals')
-    #     self.propNums = data.get('propnums')
-
     def newReqProposal(self, imsg, index):
-        clientId = imsg['clientid'] #str
-        clientReqId = imsg['reqid'] #str
+        clientId = imsg['clientid'] #int
+        clientReqId = imsg['reqid'] #int
+        value = imsg['value'] #str
+        
+        if not isinstance(clientId, int) or \
+            not isinstance(clientReqId, int) or \
+            not isinstance(value, (str, int)):
+            # request is invalid
+            print('REQUEST INVALID', file=sys.stderr)
+            return
+        
         gReqId = getGlobalReqId(clientId, clientReqId)
-        value = imsg['value']
 
         logValue = {'id': gReqId, 'value': value }
 

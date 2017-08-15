@@ -12,6 +12,7 @@ class Learner(BaseActor):
         # learnedValue: {'id': (clientid, reqId), 'value': value }
         self.learnedValues = dict()
 
+        # { string } set of request id strings
         self.completedRequests = set()
         
         self.baseIndex = 0
@@ -77,6 +78,19 @@ class Learner(BaseActor):
         
     def getBaseIndex(self):
         return self.baseIndex
+
+    def exportDict(self):
+        dump = dict()
+        dump['learnedvalues'] = self.learnedValues
+        dump['completedrequests'] = self.completedRequests
+        dump['maxindex'] = self.maxIndex
+        return dump
+
+    def importDict(self, dump):
+        self.learnedValues = dump['learnedvalues']
+        self.completedRequests = dump['completedrequests']
+        self.maxIndex = dump['maxindex']
+
 
 if __name__ == '__main__':
     pass
