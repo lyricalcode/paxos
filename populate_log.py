@@ -2,7 +2,7 @@
 
 import sys
 import time
-from basic_request import send
+from basic_client import send
 
 if __name__ == '__main__':
     

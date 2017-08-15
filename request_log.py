@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from basic_request import send
+from basic_client import send
 
 if __name__ == '__main__':
     
