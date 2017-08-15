@@ -28,6 +28,9 @@ class Proposer(BaseActor):
         clientId = imsg['clientid'] #int
         clientReqId = imsg['reqid'] #int
         value = imsg['value'] #str
+
+        clientRetIP = imsg.get('retip') #str
+        clientRetPort = imsg.get('retport') #int
         
         if not isinstance(clientId, int) or \
             not isinstance(clientReqId, int) or \
@@ -46,7 +49,7 @@ class Proposer(BaseActor):
             currentProposal = self.proposals.get(index)
             currentProposal.setValue(logValue)
             currentProposal.setOrigValue(logValue)
-            print('USING SPECIAL CASE')
+            currentProposal.setReturnInfo((clientRetIP, clientRetPort))
             self._sendAccept(index)
             return
         elif currentProposal is not None:
@@ -54,7 +57,7 @@ class Proposer(BaseActor):
             return
 
         self.propNums[index] = self.basePropNum
-        self.proposals[index] = Proposal(index, self.propNums[index], logValue, self.majority)
+        self.proposals[index] = Proposal(index, self.propNums[index], logValue, self.majority, clientRetIP, clientRetPort)
         self._sendPrepare(index)
 
     def _sendPrepare(self, index):

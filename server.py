@@ -142,10 +142,10 @@ class Server(BaseActor):
             return
         
         missing = self.learner.getMissingValues()
-        print('Missing: ', missing)
-        print('In Recovery', self.inRecovery)
-        print('Perform Lookahead', self.recoveryLookahead)
-        print('Lookahead Index', self.lookaheadIndex)
+        print('Missing:', missing)
+        print('In Recovery:', self.inRecovery)
+        print('Perform Lookahead:', self.recoveryLookahead)
+        print('Lookahead Index:', self.lookaheadIndex)
         if len(missing) == 0:
             self.recovery = False
             self.inRecovery.clear()
@@ -190,7 +190,12 @@ class Server(BaseActor):
         clientId = msg['clientid']
         clientReqId = msg['reqid']
         gReqId = getGlobalReqId(clientId, clientReqId)
-        if self.learner.checkCompleted(gReqId):
+        completed = self.learner.getCompleted(gReqId)
+        if completed is not None:
+            clientRetIP = msg.get('retip') #str
+            clientRetPort = msg.get('retport') #int
+            self.sendReply(clientRetIP, clientRetPort, completed)
+
             self.processRequest()
             return
 
@@ -218,6 +223,22 @@ class Server(BaseActor):
             acceptedProposal.setOrigRetried()
         elif not wasOverridden:
             self.recoveryLookahead = False
+            retIp, retPort = acceptedProposal.getReturnInfo()
+            index = acceptedProposal.getIndex()
+            if not self.learner.checkReply(index):
+                self.sendReply(retIp, retPort, index)
+
+    def sendReply(self, retIp, retPort, index):
+        if retIp is None or retPort is None:
+            return
+
+        print('Sent Reply', retIp, retPort)
+        value = self.learner.getLearnedValue(index)
+        omsg = dict()
+        omsg['type'] = 'response'
+        omsg['value'] = value
+        send((retIp, retPort, None), omsg)
+        self.learner.addReply(index)
         
     def handleMsg(self, msg):
         if msg is None:

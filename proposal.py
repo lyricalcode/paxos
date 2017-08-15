@@ -2,11 +2,13 @@
 from server_util import splitGlobalReqId
 
 class Proposal(object):
-    def __init__(self, index, num, value, majority):
+    def __init__(self, index, num, value, majority, retIp, retPort):
         self.index = index
         self.propNum = num
-        # value: {'id': (clientid, reqId), 'value': value }
+        # value: {'id': gReqId, 'value': value }
         self.origValue = value
+        self.returnIP = retIp
+        self.returnPort = retPort
         self.majority = majority
         self.origRetried = False
 
@@ -29,6 +31,9 @@ class Proposal(object):
     # this prevents duplicate prop numbers
     def incrementPropNum(self, increment):
         self.propNum += increment
+
+    def getIndex(self):
+        return self.index
 
     def getValue(self):
         return self.value
@@ -109,6 +114,13 @@ class Proposal(object):
         msg['clientid'], msg['reqid'] = splitGlobalReqId(self.origValue['id'])
         msg['value'] = self.origValue['value']
         return msg
+
+    def getReturnInfo(self):
+        return self.returnIP, self.returnPort
+
+    # retInfo: (retIP, retPort)
+    def setReturnInfo(self, retInfo):
+        self.returnIP, self.returnPort = retInfo
 
 if __name__ == '__main__':
     pass

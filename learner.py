@@ -12,8 +12,11 @@ class Learner(BaseActor):
         # learnedValue: {'id': gReqId, 'value': value }
         self.learnedValues = dict()
 
-        # { string } set of request id strings
-        self.completedRequests = set()
+        # { gReqId: index } set of request id strings
+        self.completedRequests = dict()
+
+        # indices for which a reply has been sent
+        self.replied = set()
         
         self.baseIndex = 0
         self.maxIndex = None
@@ -40,15 +43,16 @@ class Learner(BaseActor):
         if len(accepted[(anum, avalkey)]) >= self.majority:
             #print('Learned', aval)
             self.learnedValues[index] = aval
-            self.completedRequests.add(aval.get('id'))
+            self.completedRequests[aval.get('id')] = index
             if self.maxIndex is None or index > self.maxIndex:
                 self.maxIndex = index
             return True
         return False
 
-    # reqId: (clientId, reqId)
-    def checkCompleted(self, reqId):
-        return reqId in self.completedRequests    
+    # reqId: clientId + reqId
+    # returns index in log of completed request
+    def getCompleted(self, reqId):
+        return self.completedRequests.get(reqId)
 
     def getLearnedValue(self, index):
         return self.learnedValues.get(index)
@@ -92,10 +96,15 @@ class Learner(BaseActor):
         #self.maxIndex = dump['maxindex']
 
         for val in self.learnedValues:
-            self.completedRequests.add(self.learnedValues[val]['id'])
+            self.completedRequests[self.learnedValues[val]['id']] = val
             if self.maxIndex is None or val > self.maxIndex:
                 self.maxIndex = val
 
+    def checkReply(self, index):
+        return index in self.replied
+
+    def addReply(self, index):
+        self.replied.add(index)
 
 if __name__ == '__main__':
     pass
