@@ -1,6 +1,8 @@
 # paxos
 A Paxos implementation in Python
 
+[Paxos Wiki](https://en.wikipedia.org/wiki/Paxos_(computer_science))
+
 Dependencies: Python 3
 
 This project implements a logging system where users can write text entries into the log and retrieve the log from the system. The data in the log is replicated and kept consistent across many machines. This means that the data in the log will not be lost or result in different machines possessing different versions of the log in the event that some of the machines crash or fail. This functionality is provided by implementing what is known as the Paxos algorithm. This system provides strong reliability, but will operate at slower speeds and require more resources.
