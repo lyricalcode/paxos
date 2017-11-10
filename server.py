@@ -87,6 +87,7 @@ class Server(BaseActor):
 
         self.inputs = [ self.udpSock, self.tcpSock ]
 
+    # initialize actors and networking
     def init(self):
         self._initActors()
         self._initNetworking()

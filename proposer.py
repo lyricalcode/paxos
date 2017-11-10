@@ -167,7 +167,7 @@ class Proposer(BaseActor):
         return currentProposal.isOverridden()
 
     # retry logic
-    # retry after interval or 
+    # retry after interval for a specific slot in the log 
     def _retryAfterTime(self, index, seconds=4.0):
         self._cancelRetry(index)
         if not self.isLeader:

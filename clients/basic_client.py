@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# Sample Client for Writing an Entry to the Log
 
 import sys
 import json
@@ -31,6 +32,16 @@ if __name__ == '__main__':
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP,UDP_PORT))
+
+    '''
+    A Request Message
+    type is 'request'
+    an integer client id
+    an integer request id
+    a string value to add to the log
+    OPTIONAL the current ip as part of the return address
+    OPTIONAL the port for receving the response
+    '''
 
     msg = dict()
     msg['type'] = 'request'

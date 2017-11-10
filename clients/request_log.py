@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+# Sample client for requesting the log
+# Currently will just have the leader print the contents of the log to terminal
+
 from basic_client import send
 
 if __name__ == '__main__':

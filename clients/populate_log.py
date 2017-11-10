@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# Sample client for writing multiple entries into the log
+
 import sys
 import time
 from basic_client import send

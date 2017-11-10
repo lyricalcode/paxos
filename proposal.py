@@ -59,6 +59,7 @@ class Proposal(object):
 
     def addPromise(self, aId):
         self.promises.add(aId)
+        # check if we have enough promises
         if len(self.promises) >= self.majority:
             self.promiseQuorumEstablished = True
 
@@ -68,6 +69,7 @@ class Proposal(object):
 
     def addAccept(self, aId):
         self.accepts.add(aId)
+        # If has a quorum of acceptors, then proposal is learned
         if len(self.accepts) >= self.majority:
             self.learned = True
             return True
