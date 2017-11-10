@@ -3,7 +3,7 @@ A Paxos implementation in Python
 
 Dependencies: Python 3
 
-This project implements a logging system where clients can write text entries into the log and request the log from the system. The data in the log is replicated and kept consistent across many machines and will not be lost even if some of the machines crash or fail.
+This project implements a logging system where users can write text entries into the log and retrieve the log from the system. The data in the log is replicated and kept consistent across many machines. This means that the data in the log will not be lost or result in different machines possessing different versions of the log in the event that some of the machines crash or fail. This functionality is provided by implementing the Paxos algorithm. This system provides strong reliability, but will operate at slower speeds and require more resources.
 
 
 Deployment
@@ -19,6 +19,7 @@ SERVER_LIST_FILE is the list of servers mentioned above.
 SERVER_ID is the ID specified in the row of the server list file the corresponds to the instance you are initiating.
 STATE_FILE should be the name of the file you want the state of the node to be serialized to or a previously existing file.
 
-Upon launching all nodes, wait for leader election to complete, then the system is ready
+Upon launching all nodes, wait for leader election to complete, then the system is ready.
 
-A demo of how to perform requests can be seen in the clients folder
+A demo of how to perform requests can be seen in the clients folder.
+Requests can be sent to any node and will be forwarded the current leader.
