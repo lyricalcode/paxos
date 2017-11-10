@@ -3,6 +3,7 @@ import socket
 
 from server_util import sendTCP
 
+# object for handling leader election for each node
 class Election(object):
     def __init__(self, servers, sId):
         self.servers = servers

@@ -44,6 +44,7 @@ class Server(BaseActor):
         self.learner = None
         
 
+    # writes current state of node to disk
     def _saveState(self):
         acceptorDump = self.acceptor.exportDict()
         learnerDump = self.learner.exportDict()
@@ -53,6 +54,7 @@ class Server(BaseActor):
         with open(self.stateFileName, 'wb') as sf:
             pickle.dump(dump, sf)
 
+    # load state from disk
     def _loadState(self):
         with open(self.stateFileName, 'rb') as sf:
             dump = pickle.load(sf)
@@ -71,6 +73,7 @@ class Server(BaseActor):
             print('Loading from:', self.stateFileName)
             self._loadState()
 
+    # set up networking
     def _initNetworking(self):
         self.SERVER_IP, self.UDP_PORT, self.TCP_PORT = self.servers[self.id]
         print(self.SERVER_IP, self.UDP_PORT, self.TCP_PORT, self.id)
@@ -88,6 +91,8 @@ class Server(BaseActor):
         self._initActors()
         self._initNetworking()
 
+    # if not leader, forward message to the leader
+    # if no leader, initiate leader election
     def forwardToLeader(self, msg):
         leader = self.election.getLeader()
         if leader is None:
@@ -110,6 +115,7 @@ class Server(BaseActor):
         else:
             self.forwardToLeader(msg)
 
+    # find the current head of the log by creating proposals for the next slot until head is found
     def doLookahead(self):
         if not self.recoveryLookahead:
             self.lookaheadIndex = None
@@ -133,6 +139,7 @@ class Server(BaseActor):
         else:
             print('Error: Lookahead is too far ahead', file=sys.stderr)
     
+    # recover known missing slots in the log
     def doRecovery(self):
         self.startRecoveryTimer()
         if not self.recovery and not self.recoveryLookahead:

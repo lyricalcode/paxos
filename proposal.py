@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from server_util import splitGlobalReqId
 
+# An object to store different properties of a proposal
 class Proposal(object):
     def __init__(self, index, num, value, majority, retIp, retPort):
         self.index = index
